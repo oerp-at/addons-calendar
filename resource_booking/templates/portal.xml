@@ -8,7 +8,8 @@
 
     - access_token: to allow public access to the record
     - booking: the booking record
-    - calendar: a Calendar object, already configured with the correct first weekday
+    - weekdays: weekday numbers (MON=0) in display order, from the first weekday
+    - weeks: the weeks of the month of start, as lists of dates
     - now: tz-aware datetime object indicating current time
     - res_lang: res.lang record for current context l10n
     - slots: available slots, as returned from [resource.booking]._get_available_slots()
@@ -72,7 +73,7 @@
                     </thead>
                     <thead>
                         <tr>
-                            <t t-foreach="calendar.iterweekdays()" t-as="weekday">
+                            <t t-foreach="weekdays" t-as="weekday">
                                 <th
                                     t-att-title="weekday_names[str(weekday + 1)]"
                                     t-out="weekday_names[str(weekday + 1)][:3]"
@@ -81,10 +82,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <t
-                            t-foreach="calendar.monthdatescalendar(start.year, start.month)"
-                            t-as="week"
-                        >
+                        <t t-foreach="weeks" t-as="week">
                             <tr>
                                 <t t-foreach="week" t-as="day">
                                     <td
@@ -145,10 +143,7 @@
                 </table>
             </div>
             <!-- Hour confirmation modals -->
-            <t
-                t-foreach="calendar.monthdatescalendar(start.year, start.month)"
-                t-as="week"
-            >
+            <t t-foreach="weeks" t-as="week">
                 <t t-foreach="week" t-as="day">
                     <form
                         t-attf-id="modal-confirm-#{int(slot.timestamp())}"

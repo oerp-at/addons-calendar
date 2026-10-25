@@ -504,9 +504,13 @@ class ResourceBooking(models.Model):
         weekday_names = dict(lang.fields_get(["week_start"])["week_start"]["selection"])
         booking_duration = timedelta(hours=self.duration)
         slots = self._get_available_slots(start, start + month1 + booking_duration)
+        # Iterated here, not in QWeb: 20.0's sandbox refuses calls of
+        # calendar.Calendar methods ("Unsafe function access")
+        cal = calendar.Calendar(int(lang.week_start) - 1)
         return {
             "booking": self,
-            "calendar": calendar.Calendar(int(lang.week_start) - 1),
+            "weekdays": list(cal.iterweekdays()),
+            "weeks": cal.monthdatescalendar(start.year, start.month),
             "now": now,
             "res_lang": lang,
             "slots": slots,
