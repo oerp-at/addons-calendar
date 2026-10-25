@@ -2,12 +2,11 @@
 # Copyright 2022 Tecnativa - Pedro M. Baeza
 # Copyright 2024 Tecnativa - Carolina Fernandez
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
-from pytz import utc
 
 from odoo import Command, fields
 from odoo.exceptions import ValidationError
@@ -24,6 +23,11 @@ from odoo.addons.resource_booking.models.resource_booking import (
 from .common import create_test_data
 
 _2dt = fields.Datetime.to_datetime
+
+
+def _dt(*args):
+    """A naive UTC datetime, as Datetime fields hold them."""
+    return datetime(*args, tzinfo=UTC).replace(tzinfo=None)
 
 
 class BackendCaseBase(TransactionCase):
@@ -223,23 +227,23 @@ class BackendCaseMisc(BackendCaseBase):
         recset = self.env["resource.booking"]
         tuples = [
             (
-                datetime(2021, 3, 1, 18, 0),
-                datetime(2021, 3, 1, 23, 59, 59, 999999),
+                _dt(2021, 3, 1, 18, 0),
+                _dt(2021, 3, 1, 23, 59, 59, 999999),
                 recset,
             ),
             (
-                datetime(2021, 3, 2, 0, 0),
-                datetime(2021, 3, 2, 23, 59, 59, 999999),
+                _dt(2021, 3, 2, 0, 0),
+                _dt(2021, 3, 2, 23, 59, 59, 999999),
                 recset,
             ),
-            (datetime(2021, 3, 3, 0, 0), datetime(2021, 3, 3, 18, 0), recset),
+            (_dt(2021, 3, 3, 0, 0), _dt(2021, 3, 3, 18, 0), recset),
         ]
         available_intervals = Intervals(tuples)
         self.assertTrue(
             _availability_is_fitting(
                 available_intervals,
-                datetime(2021, 3, 1, 18, 0),
-                datetime(2021, 3, 3, 18, 0),
+                _dt(2021, 3, 1, 18, 0),
+                _dt(2021, 3, 3, 18, 0),
             )
         )
         # Skip a day by removing it.
@@ -248,8 +252,8 @@ class BackendCaseMisc(BackendCaseBase):
         self.assertFalse(
             _availability_is_fitting(
                 available_intervals,
-                datetime(2021, 3, 1, 18, 0),
-                datetime(2021, 3, 3, 18, 0),
+                _dt(2021, 3, 1, 18, 0),
+                _dt(2021, 3, 3, 18, 0),
             )
         )
 
@@ -302,15 +306,15 @@ class BackendCaseMisc(BackendCaseBase):
             )
         )
         # This might seem redundant, but makes sure onchanges don't mess stuff
-        self.assertEqual(_2dt(booking_form.start), datetime(2021, 3, 1, 8))
+        self.assertEqual(_2dt(booking_form.start), _dt(2021, 3, 1, 8))
         self.assertEqual(booking_form.duration, 1.5)
-        self.assertEqual(_2dt(booking_form.stop), datetime(2021, 3, 1, 9, 30))
+        self.assertEqual(_2dt(booking_form.stop), _dt(2021, 3, 1, 9, 30))
         # If I change to next week's monday, then the stop date advances 1:30h
-        booking_form.start = datetime(2021, 3, 8, 8)
+        booking_form.start = _dt(2021, 3, 8, 8)
         booking_form.partner_ids.add(self.partner)
-        self.assertEqual(_2dt(booking_form.start), datetime(2021, 3, 8, 8))
+        self.assertEqual(_2dt(booking_form.start), _dt(2021, 3, 8, 8))
         self.assertEqual(booking_form.duration, 1.5)
-        self.assertEqual(_2dt(booking_form.stop), datetime(2021, 3, 8, 9, 30))
+        self.assertEqual(_2dt(booking_form.stop), _dt(2021, 3, 8, 9, 30))
         # I can book it (which means type & combination were autofilled)
         booking = booking_form.save()
         self.assertTrue(booking.meeting_id)
@@ -337,12 +341,12 @@ class BackendCaseMisc(BackendCaseBase):
         # I edit it again
         with Form(booking) as booking_form:
             # Start next Tuesday: updates stop; no combination available
-            booking_form.start = datetime(2021, 3, 2, 8)
-            self.assertEqual(_2dt(booking_form.stop), datetime(2021, 3, 2, 8, 30))
+            booking_form.start = _dt(2021, 3, 2, 8)
+            self.assertEqual(_2dt(booking_form.stop), _dt(2021, 3, 2, 8, 30))
             self.assertFalse(booking_form.combination_id)
             # Move to Monday: updates stop; found one combination available
-            booking_form.start = datetime(2021, 3, 1, 8)
-            self.assertEqual(_2dt(booking_form.stop), datetime(2021, 3, 1, 8, 30))
+            booking_form.start = _dt(2021, 3, 1, 8)
+            self.assertEqual(_2dt(booking_form.stop), _dt(2021, 3, 1, 8, 30))
             self.assertTrue(booking_form.combination_id)
         self.assertEqual(booking.state, "scheduled")
         self.assertTrue(booking.meeting_id)
@@ -365,7 +369,7 @@ class BackendCaseMisc(BackendCaseBase):
         self.assertFalse(booking.combination_id)
         # With a linked meeting, it's scheduled
         with Form(booking) as booking_form:
-            booking_form.start = datetime(2021, 3, 1, 8)
+            booking_form.start = _dt(2021, 3, 1, 8)
         meeting = booking.meeting_id
         self.assertEqual(booking.state, "scheduled")
         self.assertTrue(booking.active)
@@ -404,14 +408,14 @@ class BackendCaseMisc(BackendCaseBase):
 
     def test_sorted_assignment(self):
         """Set sorted assignment on RBT and test it works correctly."""
-        rbc_mon, rbc_tue, rbc_montue, rbc_frisun = self.rbcs
+        rbc_mon, rbc_tue, rbc_montue, _rbc_frisun = self.rbcs
         with Form(self.rbt) as rbt_form:
             rbt_form.combination_assignment = "sorted"
         # Book next monday at 10:00
         rb1_form = Form(self.env["resource.booking"])
         rb1_form.type_id = self.rbt
         rb1_form.partner_ids.add(self.partner)
-        rb1_form.start = datetime(2021, 3, 1, 10)
+        rb1_form.start = _dt(2021, 3, 1, 10)
         self.assertEqual(rb1_form.combination_id, rbc_mon)
         rb1 = rb1_form.save()
         self.assertEqual(rb1.combination_id, rbc_mon)
@@ -419,13 +423,13 @@ class BackendCaseMisc(BackendCaseBase):
         rb2_form = Form(self.env["resource.booking"])
         rb2_form.type_id = self.rbt
         rb2_form.partner_ids.add(self.partner)
-        rb2_form.start = datetime(2021, 3, 1, 10)
+        rb2_form.start = _dt(2021, 3, 1, 10)
         self.assertEqual(rb2_form.combination_id, rbc_montue)
         rb2 = rb2_form.save()
         self.assertEqual(rb2.combination_id, rbc_montue)
         # I'm able to alter rb1 timing
         with Form(rb1) as rb1_form:
-            rb1_form.start = datetime(2021, 3, 2, 10)
+            rb1_form.start = _dt(2021, 3, 2, 10)
             self.assertEqual(rb1_form.combination_id, rbc_tue)
         self.assertEqual(rb1.combination_id, rbc_tue)
 
@@ -436,8 +440,8 @@ class BackendCaseMisc(BackendCaseBase):
         # Add leave next Monday for Mon resource
         self.env["resource.calendar.leaves"].create(
             {
-                "date_from": datetime(2021, 3, 1),
-                "date_to": datetime(2021, 3, 3),
+                "date_from": _dt(2021, 3, 1),
+                "date_to": _dt(2021, 3, 3),
                 "calendar_id": cal_mon.id,
                 "resource_id": res_mon.id,
             }
@@ -445,8 +449,8 @@ class BackendCaseMisc(BackendCaseBase):
         # Add meeting same day for all resources, so no combination is available
         self.env["calendar.event"].create(
             {
-                "start": datetime(2021, 3, 1, 8),
-                "stop": datetime(2021, 3, 1, 10, 30),
+                "start": _dt(2021, 3, 1, 8),
+                "stop": _dt(2021, 3, 1, 10, 30),
                 "name": "some meeting",
                 "partner_ids": [Command.set(self.users.partner_id.ids)],
             }
@@ -456,10 +460,10 @@ class BackendCaseMisc(BackendCaseBase):
         rb_form.type_id = self.rbt
         rb_form.partner_ids.add(self.partner)
         # No combination found
-        rb_form.start = datetime(2021, 3, 1, 10)
+        rb_form.start = _dt(2021, 3, 1, 10)
         self.assertFalse(rb_form.combination_id)
         # Combination found
-        rb_form.start = datetime(2021, 3, 8, 10)
+        rb_form.start = _dt(2021, 3, 8, 10)
         self.assertTrue(rb_form.combination_id)
         rb_form.save()
 
@@ -469,7 +473,7 @@ class BackendCaseMisc(BackendCaseBase):
             rb_f = Form(self.env["resource.booking"].with_context(tz="Europe/Madrid"))
             rb_f.partner_ids.add(self.partner)
             rb_f.type_id = self.rbt
-            rb_f.start = datetime(2021, 3, 1, 10)
+            rb_f.start = _dt(2021, 3, 1, 10)
             rb_f.combination_auto_assign = False
             rb_f.combination_id = self.rbcs[0]
             # 1st one works
@@ -487,7 +491,7 @@ class BackendCaseMisc(BackendCaseBase):
         ce_f.name = "recurring event past monday"
         for user in self.users:
             ce_f.partner_ids.add(user.partner_id)
-        ce_f.start = datetime(2021, 2, 22, 8)
+        ce_f.start = _dt(2021, 2, 22, 8)
         ce_f.duration = 1
         ce_f.recurrency = True
         ce_f.rrule_type_ui = "weekly"
@@ -501,10 +505,10 @@ class BackendCaseMisc(BackendCaseBase):
         # No RBC when starting
         self.assertFalse(rb_f.combination_id)
         # No RBC available next Monday at 8
-        rb_f.start = datetime(2021, 3, 1, 8)
+        rb_f.start = _dt(2021, 3, 1, 8)
         self.assertFalse(rb_f.combination_id)
         # Everyone's free at 9
-        rb_f.start = datetime(2021, 3, 1, 9)
+        rb_f.start = _dt(2021, 3, 1, 9)
         self.assertTrue(rb_f.combination_id)
 
     def test_allday_event_blocks_booking_slot(self):
@@ -531,11 +535,11 @@ class BackendCaseMisc(BackendCaseBase):
         # Force the user-resource combination so the all-day event has to block it
         rb_f.combination_auto_assign = False
         rb_f.combination_id = self.rbcs[0]
-        rb_f.start = datetime(2021, 3, 1, 9)
+        rb_f.start = _dt(2021, 3, 1, 9)
         with self.assertRaises(ValidationError):
             rb_f.save()
         # Following Monday is fine
-        rb_f.start = datetime(2021, 3, 8, 9)
+        rb_f.start = _dt(2021, 3, 8, 9)
         rb_f.save()
 
     @mute_logger("odoo.models.unlink")
@@ -567,19 +571,24 @@ class BackendCaseMisc(BackendCaseBase):
         future_booking.action_confirm()
         self.assertEqual(future_booking.state, "confirmed")
         # Now, it's impossible for me to change the resource calendar
-        with self.assertRaises(ValidationError), self.env.cr.savepoint():
-            with Form(cal_mon) as cal_mon_f:
-                with cal_mon_f.attendance_ids.edit(0) as att_mon_f:
-                    att_mon_f.hour_from = 9
+        with (
+            self.assertRaises(ValidationError),
+            self.env.cr.savepoint(),
+            Form(cal_mon) as cal_mon_f,
+            cal_mon_f.attendance_ids.edit(0) as att_mon_f,
+        ):
+            att_mon_f.hour_from = 9
         # But let's unconfirm future boooking
         future_booking.action_unschedule()
         with Form(future_booking) as future_booking_f:
             future_booking_f.start = "2021-03-01 08:00:00"
         self.assertEqual(future_booking.state, "scheduled")
         # Now I should be able to change the resource calendar
-        with Form(cal_mon) as cal_mon_f:
-            with cal_mon_f.attendance_ids.edit(0) as att_mon_f:
-                att_mon_f.hour_from = 9
+        with (
+            Form(cal_mon) as cal_mon_f,
+            cal_mon_f.attendance_ids.edit(0) as att_mon_f,
+        ):
+            att_mon_f.hour_from = 9
         # However, now I shouldn't be able to confirm future booking
         with self.assertRaises(ValidationError), self.env.cr.savepoint():
             future_booking.action_confirm()
@@ -597,8 +606,8 @@ class BackendCaseMisc(BackendCaseBase):
         )
         self.assertEqual(rb.duration, 1.5)
         slots = rb._get_available_slots(
-            utc.localize(datetime(2021, 3, 2, 14, 15)),
-            utc.localize(datetime(2021, 3, 8, 10)),
+            datetime(2021, 3, 2, 14, 15, tzinfo=UTC),
+            datetime(2021, 3, 8, 10, tzinfo=UTC),
         )
         self.assertEqual(
             slots,
@@ -607,18 +616,18 @@ class BackendCaseMisc(BackendCaseBase):
                 date(2021, 3, 2): [
                     # We start searching at 14:15, so first free slot will
                     # start at 14:30
-                    utc.localize(datetime(2021, 3, 2, 14, 30)),
-                    utc.localize(datetime(2021, 3, 2, 15)),
+                    datetime(2021, 3, 2, 14, 30, tzinfo=UTC),
+                    datetime(2021, 3, 2, 15, tzinfo=UTC),
                     # Booking duration is 1:30, and calendar ends at 17:00, so
                     # last slot starts at 15:30
-                    utc.localize(datetime(2021, 3, 2, 15, 30)),
+                    datetime(2021, 3, 2, 15, 30, tzinfo=UTC),
                 ],
                 # Next Monday, because calendar only allows Mondays and Tuesdays
                 date(2021, 3, 8): [
                     # Calendar starts at 8:00
-                    utc.localize(datetime(2021, 3, 8, 8)),
+                    datetime(2021, 3, 8, 8, tzinfo=UTC),
                     # We are searching until 10:00, so last free slot is at 8:30
-                    utc.localize(datetime(2021, 3, 8, 8, 30)),
+                    datetime(2021, 3, 8, 8, 30, tzinfo=UTC),
                 ],
             },
         )
@@ -756,7 +765,7 @@ class BackendCaseMisc(BackendCaseBase):
         self.assertEqual(
             rb.display_name,
             "some customer - Test resource booking type "
-            "- 03/01/2021 at (08:00:00 AM To 08:30:00 AM) (UTC)",
+            "- 03/01/2021 at (08:00 AM To 08:30 AM) (UTC)",
         )
         self.assertEqual(rb.with_context(using_portal=True).display_name, f"#{rb.id}")
 
@@ -898,39 +907,39 @@ class BackendCaseMisc(BackendCaseBase):
         # Resource is available on Monday at an unoccupied time.
         self.assertTrue(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 1, 10, 0)),
-                utc.localize(datetime(2021, 3, 1, 11, 0)),
+                datetime(2021, 3, 1, 10, 0, tzinfo=UTC),
+                datetime(2021, 3, 1, 11, 0, tzinfo=UTC),
             )
         )
         # Resource is not available on Monday at an occupied time (longer than
         # booking).
         self.assertFalse(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 1, 7, 45)),
-                utc.localize(datetime(2021, 3, 1, 8, 45)),
+                datetime(2021, 3, 1, 7, 45, tzinfo=UTC),
+                datetime(2021, 3, 1, 8, 45, tzinfo=UTC),
             )
         )
         # Resource is not available on Monday at an occupied time (within
         # booking time).
         self.assertFalse(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 1, 8, 10)),
-                utc.localize(datetime(2021, 3, 1, 8, 20)),
+                datetime(2021, 3, 1, 8, 10, tzinfo=UTC),
+                datetime(2021, 3, 1, 8, 20, tzinfo=UTC),
             )
         )
         # Resource is not available on Monday at an occupied time (partially
         # overlaps booking).
         self.assertFalse(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 1, 8, 15)),
-                utc.localize(datetime(2021, 3, 1, 8, 45)),
+                datetime(2021, 3, 1, 8, 15, tzinfo=UTC),
+                datetime(2021, 3, 1, 8, 45, tzinfo=UTC),
             )
         )
         # Resource is not available on Wednesdays.
         self.assertFalse(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 3, 10, 0)),
-                utc.localize(datetime(2021, 3, 3, 11, 0)),
+                datetime(2021, 3, 3, 10, 0, tzinfo=UTC),
+                datetime(2021, 3, 3, 11, 0, tzinfo=UTC),
             )
         )
 
@@ -952,15 +961,15 @@ class BackendCaseMisc(BackendCaseBase):
         )
         self.assertFalse(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 6, 22, 0)),
-                utc.localize(datetime(2021, 3, 7, 2, 0)),
+                datetime(2021, 3, 6, 22, 0, tzinfo=UTC),
+                datetime(2021, 3, 7, 2, 0, tzinfo=UTC),
             )
         )
         # Resource is available on the next weekend.
         self.assertTrue(
             resource.is_available(
-                utc.localize(datetime(2021, 3, 13, 22, 0)),
-                utc.localize(datetime(2021, 3, 14, 2, 0)),
+                datetime(2021, 3, 13, 22, 0, tzinfo=UTC),
+                datetime(2021, 3, 14, 2, 0, tzinfo=UTC),
             )
         )
 
@@ -978,15 +987,13 @@ class BackendCaseMisc(BackendCaseBase):
         calendar_friday = self.r_calendars[3]
         rbc_friday = self.rbcs[3]
         rbc_friday.resource_ids.write({"tz": "America/Guayaquil"})
-        calendar_friday.write({"tz": "America/Guayaquil"})
         calendar_friday.attendance_ids.write({"hour_from": 6, "hour_to": 15})
-        calendar_meeting = calendar_friday.copy(
-            {"name": "Calendar Meeting", "tz": "Europe/Madrid"}
-        )
+        calendar_meeting = calendar_friday.copy({"name": "Calendar Meeting"})
         calendar_meeting.attendance_ids.write({"hour_from": 9, "hour_to": 14})
         self.rbt.write(
             {
                 "resource_calendar_id": calendar_meeting.id,
+                "tz": "Europe/Madrid",
                 "modifications_deadline": 2,
             }
         )
@@ -1006,10 +1013,19 @@ class BackendCaseMisc(BackendCaseBase):
             self.assertEqual(slots[0].strftime("%H:%M:%S"), "12:00:00")
             # Check that all slots are in the expected time zone.
             for slot in slots:
-                self.assertEqual(slot.tzinfo.zone, "Europe/Madrid")
+                self.assertEqual(str(slot.tzinfo), "Europe/Madrid")
 
 
 class TestMailActivity(BaseCommon):
+    # 20.0: BaseCommon runs as its test user. It books like a manager and may edit
+    # contacts: the activities sit on a contact, and an activity is written with
+    # the right to write its document.
+    _test_user_groups = (
+        "base.group_user",
+        "base.group_partner_manager",
+        "resource_booking.group_manager",
+    )
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -1058,21 +1074,19 @@ class TestMailActivity(BaseCommon):
             self.mail_activity.date_deadline, fields.Date.from_string("2021-03-01")
         )
         feedback = "Test Feedback"
-        messages, activities = self.mail_activity._action_done(feedback=feedback)
+        messages = self.mail_activity._action_done(feedback=feedback)
         self.assertEqual(
             booking.description,
             "<p>Booking Description</p><br>Feedback: <p>Test Feedback</p>",
         )
-        self.assertNotEqual(messages, [])
-        self.assertNotEqual(activities, [])
+        self.assertTrue(messages)
 
     @mute_logger("odoo.models.unlink")
     def test_action_done_without_feedback(self):
         booking = self._create_booking_from_mail_activity(self.mail_activity)
-        messages, activities = self.mail_activity._action_done()
+        messages = self.mail_activity._action_done()
         self.assertEqual(booking.description, "<p>Booking Description</p>")
-        self.assertNotEqual(messages, [])
-        self.assertNotEqual(activities, [])
+        self.assertTrue(messages)
 
     @freeze_time("2021-03-01 06:00:00")
     def test_sync_booking_activities(self):
@@ -1103,7 +1117,7 @@ class TestMailActivity(BaseCommon):
             }
         )
         mail_activity = booking.booking_activity_ids[0]
-        future_date = datetime.now() + relativedelta(years=1000)
+        future_date = fields.Datetime.now() + relativedelta(years=1000)
         self.assertEqual(mail_activity.date_deadline, future_date.date())
         booking.combination_id = self.rbcs[2].id
         booking.combination_auto_assign = False
@@ -1161,10 +1175,10 @@ class BackendCaseCustom(BackendCaseBase):
         # Simulate the same as portal_booking_confirm
         booking_sudo = rb_model.sudo().browse(rb.id)
         booking_sudo = booking_sudo.with_context(
-            using_portal=True, tz=booking_sudo.type_id.resource_calendar_id.tz
+            using_portal=True, tz=booking_sudo.type_id.tz
         )
         with Form(booking_sudo) as booking_form:
-            booking_form.start = datetime(2021, 3, 1, 10)
+            booking_form.start = _dt(2021, 3, 1, 10)
         booking_sudo.action_confirm()
         meeting = rb.meeting_id
         follower = meeting.message_follower_ids.filtered(
@@ -1207,10 +1221,10 @@ class BackendCaseCustom(BackendCaseBase):
         # Simulate the same as portal_booking_confirm
         booking_sudo = rb_model.sudo().browse(rb.id)
         booking_sudo = booking_sudo.with_context(
-            using_portal=True, tz=booking_sudo.type_id.resource_calendar_id.tz
+            using_portal=True, tz=booking_sudo.type_id.tz
         )
         with Form(booking_sudo) as booking_form:
-            booking_form.start = datetime(2021, 3, 1, 10)
+            booking_form.start = _dt(2021, 3, 1, 10)
         booking_sudo.action_confirm()
         meeting = rb.meeting_id
         follower = meeting.message_follower_ids.filtered(

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <!-- Copyright 2021 Tecnativa - Jairo Llopis
      License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
 <odoo>
@@ -43,6 +43,7 @@
                             <field name="slot_duration" widget="float_time" />
                             <field name="modifications_deadline" widget="float_time" />
                             <field name="resource_calendar_id" />
+                            <field name="tz" />
                         </group>
                         <group name="event_defaults" string="Meeting defaults">
                             <field name="location" />

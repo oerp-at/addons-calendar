@@ -5,10 +5,12 @@ from random import random
 
 from odoo import api, fields, models
 
+from odoo.addons.base.models.res_partner import _tz_get
+
 
 class ResourceBookingType(models.Model):
     _name = "resource.booking.type"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ("mail.thread", "mail.activity.mixin")
     _description = "Resource Booking Type"
     _duration_positive = models.Constraint(
         "CHECK (duration > 0)",
@@ -52,7 +54,6 @@ class ResourceBookingType(models.Model):
         index=True,
         readonly=False,
         store=True,
-        string="Company",
         help="Company where this booking type is available.",
     )
     duration = fields.Float(
@@ -83,6 +84,14 @@ class ResourceBookingType(models.Model):
         inverse_name="type_id",
         string="Bookings",
         help="Bookings available for this type",
+    )
+    tz = fields.Selection(
+        _tz_get,
+        string="Timezone",
+        required=True,
+        default=lambda self: self.env.company.tz or self.env.user.tz or "UTC",
+        help="Timezone of the availability calendar: slots are offered and "
+        "invitations are written in it.",
     )
     resource_calendar_id = fields.Many2one(
         comodel_name="resource.calendar",

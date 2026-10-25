@@ -2,7 +2,7 @@
 # Copyright 2023 Tecnativa - Carolina Fernandez
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from freezegun import freeze_time
 from lxml.html import fromstring
@@ -153,7 +153,7 @@ class PortalCase(HttpCase):
         self.assertTrue(public_page.cssselect(".o_booking_calendar .dropdown"))
         self.assertTrue(public_page.cssselect(".o_booking_calendar form"))
         # Public guy makes reservation next Monday at 10:00
-        slot = datetime(2021, 3, 1, 10).timestamp()
+        slot = datetime(2021, 3, 1, 10, tzinfo=UTC).timestamp()
         selector_10am = (
             "#dropdown-trigger-2021-03-01 "
             "+ .slots-dropdown .dropdown-item:contains('10:00')"
@@ -186,7 +186,7 @@ class PortalCase(HttpCase):
         self.assertTrue(
             public_page.cssselect(
                 'div:contains("Dates:")'
-                ':contains("03/01/2021 at (10:00:00 AM To 10:30:00 AM) (UTC)")'
+                ':contains("03/01/2021 at (10:00 AM To 10:30 AM) (UTC)")'
             )
         )
         # Public guy's booking and related meeting are OK in backend
@@ -228,7 +228,7 @@ class PortalCase(HttpCase):
         # He can't select that slot anymore, so he books it 30 minutes later
         self.assertFalse(portal_page.cssselect(selector_10am))
         self.assertTrue(portal_page.cssselect(selector_1030am))
-        slot = datetime(2021, 3, 1, 10, 30).timestamp()
+        slot = datetime(2021, 3, 1, 10, 30, tzinfo=UTC).timestamp()
         self.assertTrue(portal_page.cssselect("#dropdown-trigger-2021-03-08"))
         form = portal_page.cssselect(f"form#modal-confirm-{int(slot)}")[0]
         portal_url = form.get("action")
@@ -252,7 +252,7 @@ class PortalCase(HttpCase):
         self.assertTrue(
             portal_page.cssselect(
                 'div:contains("Dates:")'
-                ':contains("03/01/2021 at (10:30:00 AM To 11:30:00 AM) (UTC)")'
+                ':contains("03/01/2021 at (10:30 AM To 11:30 AM) (UTC)")'
             )
         )
         # Portal guy cancels

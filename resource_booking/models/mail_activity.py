@@ -42,9 +42,10 @@ class MailActivity(models.Model):
         action["context"] = ctx
         return action
 
-    def _action_done(self, feedback=False, attachment_ids=False):
+    def _action_done(self, feedback=False, attachment_ids=None):
         bookings = self.mapped("booking_id")
-        messages, activities = super()._action_done(
+        # 20.0: returns the posted messages only
+        messages = super()._action_done(
             feedback=feedback, attachment_ids=attachment_ids
         )
         if feedback:
@@ -60,4 +61,4 @@ class MailActivity(models.Model):
                     else "",
                 )
                 booking.write({"description": description})
-        return messages, activities
+        return messages

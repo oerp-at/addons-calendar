@@ -27,9 +27,10 @@ class ResourceResource(models.Model):
         # the `analyzing_booking` context needs to be added here, or bookings
         # are not marked as busy. Because we do not actually have a booking_id
         # available here, we set the value to -1.
+        resources_per_tz = {tz: self} if tz else self._get_resources_per_tz()
         result = self.calendar_id.with_context(
             analyzing_booking=-1
-        )._work_intervals_batch(start_dt, end_dt, resources=self, domain=domain, tz=tz)[
-            self.id
-        ]
+        )._work_intervals_batch(
+            start_dt, end_dt, resources_per_tz=resources_per_tz, domain=domain
+        )[self.id]
         return _availability_is_fitting(result, start_dt, end_dt)

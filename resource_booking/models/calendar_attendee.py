@@ -20,7 +20,7 @@ class CalendarAttendee(models.Model):
         res = super()._compute_mail_tz()
         for attendee in self:
             booking = attendee.event_id.sudo().resource_booking_ids
-            booking_tz = booking.type_id.resource_calendar_id.tz
+            booking_tz = booking.type_id.tz
             if booking_tz:
                 attendee.mail_tz = booking_tz
         return res

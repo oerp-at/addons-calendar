@@ -22,7 +22,9 @@ To configure one booking type:
 5.  Set the *Modifications Deadline*, to forbid non-managers to alter
     dates of a booking when it's too late.
 6.  Choose one *Availability Calendar*. No bookings will exist outside
-    of it.
+    of it. Set the *Timezone* the calendar is read in: slots are offered
+    and invitations are written in it (since 20.0 a working calendar has
+    no timezone of its own).
 7.  Under *Meeting defaults*, you will be able to fill some values that
     will be used by default on calendar meetings. These will appear in
     the global calendar when some booking is reserved.

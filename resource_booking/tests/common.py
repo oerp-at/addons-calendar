@@ -16,56 +16,46 @@ def create_test_data(obj):
     attendances = [
         Command.create(
             {
-                "name": "Mondays",
                 "dayofweek": "0",
                 "hour_from": 8,
                 "hour_to": 17,
-                "day_period": "morning",
             },
         ),
         Command.create(
             {
-                "name": "Tuesdays",
                 "dayofweek": "1",
                 "hour_from": 8,
                 "hour_to": 17,
-                "day_period": "morning",
             },
         ),
         Command.create(
             {
-                "name": "Fridays",
                 "dayofweek": "4",
                 "hour_from": 0,
                 "hour_to": 24,
-                "day_period": "morning",
             },
         ),
         Command.create(
             {
-                "name": "Saturdays",
                 "dayofweek": "5",
                 "hour_from": 0,
                 "hour_to": 24,
-                "day_period": "morning",
             },
         ),
         Command.create(
             {
-                "name": "Sunday",
                 "dayofweek": "6",
                 "hour_from": 0,
                 "hour_to": 24,
-                "day_period": "morning",
             },
         ),
     ]
     obj.r_calendars = obj.env["resource.calendar"].create(
         [
-            {"name": "Mon", "attendance_ids": [attendances[0]], "tz": "UTC"},
-            {"name": "Tue", "attendance_ids": [attendances[1]], "tz": "UTC"},
-            {"name": "MonTue", "attendance_ids": attendances[0:2], "tz": "UTC"},
-            {"name": "FriSun", "attendance_ids": attendances[2:], "tz": "UTC"},
+            {"name": "Mon", "attendance_ids": [attendances[0]]},
+            {"name": "Tue", "attendance_ids": [attendances[1]]},
+            {"name": "MonTue", "attendance_ids": attendances[0:2]},
+            {"name": "FriSun", "attendance_ids": attendances[2:]},
         ]
     )
     # Create one material resource for each of those calendars; same order
@@ -120,6 +110,7 @@ def create_test_data(obj):
                 for num, rbc in enumerate(obj.rbcs)
             ],
             "resource_calendar_id": obj.r_calendars[2].id,
+            "tz": "UTC",
             "location": "Main office",
             "videocall_location": "Videocall Main office",
         }

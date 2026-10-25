@@ -18,9 +18,7 @@ class CustomerPortal(portal.CustomerPortal):
         booking_sudo = self._document_check_access(
             "resource.booking", booking_id, access_token
         )
-        return booking_sudo.with_context(
-            using_portal=True, tz=booking_sudo.type_id.resource_calendar_id.tz
-        )
+        return booking_sudo.with_context(using_portal=True, tz=booking_sudo.type_id.tz)
 
     def _prepare_home_portal_values(self, counters):
         """Compute values for multi-booking portal views."""

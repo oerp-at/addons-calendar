@@ -2,9 +2,7 @@
 # Copyright 2022 Tecnativa - Pedro M. Baeza
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
-from datetime import datetime, time, timedelta
-
-from pytz import UTC
+from datetime import UTC, datetime, time, timedelta
 
 from odoo import api, fields, models
 from odoo.fields import Domain
@@ -18,7 +16,7 @@ class Busy(Exception):
 class ResourceCalendar(models.Model):
     _inherit = "resource.calendar"
 
-    @api.constrains("attendance_ids", "global_leave_ids", "leave_ids", "tz")
+    @api.constrains("attendance_ids", "global_leave_ids", "leave_ids")
     def _check_bookings_scheduling(self):
         """Scheduled bookings must have no conflicts."""
         bookings = (
@@ -111,11 +109,13 @@ class ResourceCalendar(models.Model):
                 # have no start/stop timestamps in some flows, so derive the
                 # interval from start_date/stop_date in the analyzer's tz.
                 if event.allday and event.start_date and event.stop_date:
-                    event_start = interval_tz.localize(
-                        datetime.combine(event.start_date, time.min)
+                    event_start = datetime.combine(
+                        event.start_date, time.min, tzinfo=interval_tz
                     )
-                    event_stop = interval_tz.localize(
-                        datetime.combine(event.stop_date + timedelta(days=1), time.min)
+                    event_stop = datetime.combine(
+                        event.stop_date + timedelta(days=1),
+                        time.min,
+                        tzinfo=interval_tz,
                     )
                 else:
                     event_start = fields.Datetime.context_timestamp(
@@ -134,16 +134,25 @@ class ResourceCalendar(models.Model):
         return Intervals(intervals)
 
     def _leave_intervals_batch(
-        self, start_dt, end_dt, resources=None, domain=None, tz=None
+        self, start_dt, end_dt, resources_per_tz=None, domain=None
     ):
         """Count busy meetings as leaves if required by context."""
-        result = super()._leave_intervals_batch(start_dt, end_dt, resources, domain, tz)
+        result = super()._leave_intervals_batch(
+            start_dt, end_dt, resources_per_tz, domain
+        )
         if self.env.context.get("analyzing_booking"):
+            # 20.0: the intervals of each resource are expressed in its own tz
+            tz_of = {
+                resource.id: tz
+                for tz, resources in (resources_per_tz or {}).items()
+                for resource in resources
+            }
             for resource_id in result:
                 # TODO Make this work in batch too
+                tz = tz_of.get(resource_id, start_dt.tzinfo)
                 result[resource_id] |= self._calendar_event_busy_intervals(
-                    start_dt,
-                    end_dt,
+                    start_dt.astimezone(tz),
+                    end_dt.astimezone(tz),
                     self.env["resource.resource"].browse(resource_id),
                     self.env.context["analyzing_booking"],
                 )
