@@ -1,0 +1,2 @@
+# DO NOT MERGE UPSTREAM - temporary pin until web_calendar_slot_duration is on OCA/web 20.0.
+odoo-addon-web_calendar_slot_duration @ git+https://github.com/oerp-at/addons-web.git@20.0-mig-web_calendar_slot_duration#subdirectory=web_calendar_slot_duration
